@@ -21,4 +21,4 @@ PR이 없으면 `commit-commands:commit-push-pr`로 생성할지 먼저 묻는�
 /plugin install workflow@nijesmik
 ```
 
-`pr-review-toolkit`이 의존성으로 함께 설치된다.
+의존성 `pr-review-toolkit`(리뷰)과 `commit-commands`(커밋·PR 생성)가 함께 설치된다.
