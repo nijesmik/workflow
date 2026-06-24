@@ -64,36 +64,49 @@ head가 기본/보호 브랜치면(release PR 등) 수정 전 사용자에게 �
 
 FP는 표 밖 — 코드 변경 없이 테이블에 FP 사유만 기록한다.
 
-각 finding(또는 밀접히 연관된 묶음)을 `commit-commands:commit`으로 **로컬 커밋만** 한다 —
-finding↔커밋이 일의적이도록(여러 finding을 한 커밋에 섞지 않는다). resolution의 `<sha>`는 그 커밋 해시.
-**아직 push하지 않는다** — push는 5단계 검증 통과 후.
+각 finding을 **수정 직후 바로**(다음 finding을 건드리기 전에) `commit-commands:commit`으로
+**로컬 커밋만** 한다 — 작업트리에 여러 finding이 섞이지 않아 finding↔커밋이 일의적이 된다.
+resolution의 `<sha>`는 그 커밋 해시. **아직 push하지 않는다** — push는 5단계에서.
 
 ## 5단계 — Verify (push 전 게이트)
 
-4단계 수정은 아직 **로컬 커밋** 상태다. 검증을 통과해야 push한다 — 깨진 커밋이 원격에 먼저 도달하지 않게.
+4단계 수정은 아직 **로컬 커밋** 상태다. 아래 **순서대로** 진행한다 — 깨진 커밋이 원격에 먼저 가지 않게.
 
-- **항상 실행**: 영향 앱의 `lint / test / typecheck`. 명령은 프로젝트 CLAUDE.md에서 찾고, 없으면
-  `package.json` scripts / Makefile / pyproject 등을 확인해 결정한다. 못 찾으면 그 사실을 코멘트에 남긴다.
-- **조건부 재리뷰** — 아래 중 하나라도 참이면 수정 영역을 `pr-review-toolkit:review-pr`로 재리뷰:
-  1. 수정이 **로직**을 건드림 — 단순 typo·주석·import 순서·포맷은 제외. 단 **사이드이펙트 import 추가·설정값/상수 변경·문자열 리터럴 변경은 로직으로 본다.**
+**(1) lint/test/typecheck — 항상, 그리고 먼저.** 명령은 프로젝트 CLAUDE.md에서 찾고, 없으면
+`package.json` scripts / Makefile / pyproject 등에서 결정한다(못 찾으면 코멘트에 남긴다).
+- **실패하면 여기서 끝낸다**: push하지 않고(깨진 커밋은 로컬에만), ❌ 기록 후 6단계로. **재리뷰는 평가하지 않는다** (검증 실패가 재리뷰보다 우선).
+
+**(2) 검증 통과 후에만 조건부 재리뷰.** 아래 중 하나라도 참이면 `pr-review-toolkit:review-pr`로 재리뷰:
+  1. 수정이 **로직**을 건드림 — typo·주석·import 순서·포맷은 제외. 단 사이드이펙트 import·설정값/상수·문자열 리터럴 변경은 로직으로 본다.
   2. 수정이 원래 PR diff 밖 파일을 건드림
   3. Critical TP를 수정함
-  4. N-b 잠정 수정이 있음(항상 재리뷰)
+  4. N-a(강제) 또는 N-b(잠정) 수정이 있음
 
   다 거짓이면 재리뷰 스킵.
-- 재리뷰가 **새 TP**를 내면 3→4단계로 돌아간다. **최대 2라운드**(재리뷰 사이클 2회). 초과 시 잔여 TP는
-  "unresolved, blocks merge"로 기록하고 루프를 멈춘다.
-- **검증 통과 시**: 로컬 커밋들을 push한다. push가 거부되면(non-fast-forward) `git pull --rebase` 후 1회 재시도,
-  그래도 실패하면 "push 실패"로 기록하고 6단계로.
-- **lint/test/typecheck 실패 시**: **push하지 않는다**(깨진 커밋은 로컬에 남김). ❌로 기록하고 6단계로.
+- 재리뷰 결과에서 **이미 판정한 finding은 제외**하고(중복 제거) **새 TP만** 3→4단계로 보낸다. **최대 2라운드.**
+  초과 시 잔여 새 TP는 "unresolved, blocks merge"로 기록하고 루프를 멈춘다.
 
-## 6단계 — Comment (모든 종료 경로가 거친다)
+**(3) push.** 검증을 통과하고 루프가 끝나면 로컬 커밋들을 push한다. **잔여 unresolved TP가 있어도
+이미 검증 통과한 fix 커밋은 push한다**(잔여는 코멘트로 알리며, push를 막지 않는다). push 거부
+(non-fast-forward) 시 `git pull --rebase` → **lint/test/typecheck 재실행** → 통과면 push, 실패면
+"push 실패"로 기록 후 6단계.
 
-정상 완료든 중단(검증 실패 / 2라운드 초과 / push 실패 / gh 오류 외)이든 **항상 이 코멘트를 남긴다.**
+## 6단계 — Comment
 
-**기존 코멘트 갱신**: 코멘트 첫 줄 마커 `## pr-review 결과`로 식별한다. 같은 마커의 코멘트가 이미 있으면
-그 코멘트를 edit하고(코멘트 id를 `gh api`로 찾아 PATCH, 또는 러너가 pr-review 코멘트만 단다는 전제하에
-`gh pr comment <번호> --edit-last`), 없으면 `gh pr comment <번호> --body ...`로 새로 만든다 → 재실행해도 중복 안 쌓임.
+**1단계에서 PR을 확보한 뒤의 모든 종료 경로**(정상 / 검증 실패 / 2라운드 초과 / push 실패)는 이 코멘트를
+남긴다. 예외: 1단계에서 PR 자체를 못 얻었으면(달 대상 없음) 사용자에게 알리고 종료. `gh pr comment`/`gh api`
+호출 자체가 실패하면 결과를 사용자에게 직접 보고한다.
+
+**기존 코멘트 갱신(중복 방지)**: 마커 `## pr-review 결과`로 기존 코멘트를 찾아 edit한다:
+```bash
+id=$(gh api "repos/{owner}/{repo}/issues/<번호>/comments" \
+       --jq '.[] | select(.body | startswith("## pr-review 결과")) | .id' | head -1)
+if [ -n "$id" ]; then
+  gh api --method PATCH "repos/{owner}/{repo}/issues/comments/$id" -f body="$BODY"
+else
+  gh pr comment <번호> --body "$BODY"
+fi
+```
 
 ```markdown
 ## pr-review 결과
