@@ -37,9 +37,11 @@
 
 ### 원본에 **없던** 우리 추가 (두 축 판정)
 
+근거와 결정 기록은 [two-axis-fix-model.md](./two-axis-fix-model.md) 참조.
+
 | 에이전트 섹션 | 비고 |
 |---|---|
-| **The Two Axes** | 원본에 없음. pr-review의 fix 결정 로직을 위해 brainstorming에서 설계 |
+| **The Two Axes** | 원본에 없음. pr-review의 fix 결정 로직을 위해 brainstorming에서 설계 → [two-axis-fix-model.md](./two-axis-fix-model.md) |
 | `blocks_merge` (축 A) | 머지를 막는가 — 심각도·영향 |
 | `auto_fixable` (축 B) | 안전하게 자동수정 가능한가 — in-scope · low-risk · bounded. 셋 다 충족 시 `Y` |
 | `N-a` / `N-b` 구분 | not-auto-fixable 사유: 범위·크기(N-a) vs 모호·설계(N-b). N-b는 잠정수정 안전판의 트리거 |
