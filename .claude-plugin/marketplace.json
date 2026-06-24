@@ -1,12 +1,16 @@
 {
   "name": "nijesmik",
   "owner": { "name": "nijesmik" },
+  "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official"],
   "plugins": [
     {
       "name": "workflow",
       "source": "./",
       "description": "PR 워크플로우 자동화 — 열린 PR을 리뷰·검증·자동수정·코멘트까지 처리",
-      "dependencies": ["pr-review-toolkit", "commit-commands"]
+      "dependencies": [
+        { "name": "pr-review-toolkit", "marketplace": "claude-plugins-official" },
+        { "name": "commit-commands", "marketplace": "claude-plugins-official" }
+      ]
     }
   ]
 }
