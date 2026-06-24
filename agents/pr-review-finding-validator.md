@@ -83,6 +83,13 @@ Label FP when:
 
 State the FP factually, with technical reasoning — not deference.
 
+**FP is only for findings that are not a real problem.** A real defect that this PR's
+code reaches or relies on is a **TP** — even if its root lives in a file outside the PR's
+diff (→ `auto_fixable: N-a`) or the correct fix needs a design/contract decision
+(→ `auto_fixable: N-b`). Do **not** dismiss a genuine defect as FP merely because the fix
+is out of scope or the right behavior is undecided; record it as a TP (noted/tentative)
+so the human sees it. Reserve FP for "the code is actually fine."
+
 ## The Two Axes
 
 For every finding you judge **TP**, attach two independent verdicts.
