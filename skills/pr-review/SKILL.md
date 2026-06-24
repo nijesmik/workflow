@@ -93,19 +93,31 @@ else
 fi
 ```
 
+Use **two tables**: TPs that still need a human come first; resolved/dismissed items go below as the audit record. Omit a table if it has no rows.
+
 ```markdown
 ## pr-review result
 
-<!-- If there are unresolved merge blockers, call them out above the table -->
+<!-- Only if there are unresolved merge blockers -->
 > ⚠️ **Unresolved merge blockers**: <items> — need human confirmation before merge
 
+### Needs your attention — TPs not resolved
+<!-- Tentative (N-b), noted, and unresolved TPs. Omit this section if empty. -->
+| Finding | Severity | Verdict | Status / next step |
+| --- | --- | --- | --- |
+| <finding> (`file:line`) | Critical/Important/Suggestion | TP — rationale | Tentative fix in `<sha>` — confirm before merge / noted — recommended fix / unresolved — blocks merge |
+
+### Resolved & dismissed
+<!-- Auto-fixed TPs and FPs. Omit this section if empty. -->
 | Finding | Severity | Verdict | Resolution |
 | --- | --- | --- | --- |
-| <finding> (`file:line`) | Critical/Important/Suggestion | TP/FP — rationale | Fixed in `<sha>` / Tentative fix in `<sha>` / noted / Dismissed |
+| <finding> (`file:line`) | Critical/Important/Suggestion | TP/FP — rationale | Fixed in `<sha>` / Dismissed (FP) |
 
 <!-- On verify failure / push failure -->
 > ❌ lint/test/typecheck failed: <summary> (fix commits are local only, not pushed)
 ```
 
-- Unresolved blocks_merge TPs + all N-b tentative fixes are called out **outside** the table with ⚠️.
+- "Needs your attention" holds every TP that is **not** auto-resolved: N-b tentative fixes (confirm), noted TPs (decide/fix), and 2-round-overflow unresolved TPs (blocks merge). It comes first so the human's remaining work is up top.
+- "Resolved & dismissed" holds auto-fixed TPs and FPs — the closed record.
+- Unresolved blocks_merge TPs + all N-b tentative fixes are also called out **above both tables** with ⚠️.
 - The terminal point is this comment. Do not merge.
