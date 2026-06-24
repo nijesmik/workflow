@@ -1,6 +1,6 @@
 # workflow
 
-Claude Code 플러그인. PR 워크플로우 자동화 스킬 모음.
+Claude Code 플러그인. 개발 워크플로우 자동화 스킬 모음.
 
 ## 스킬
 
