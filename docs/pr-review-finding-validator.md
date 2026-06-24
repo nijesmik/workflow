@@ -32,7 +32,7 @@
 | Verifying Each Finding (5점 체크리스트) | Source-Specific Handling → External Reviewers | 거의 그대로. "Be skeptical, but check carefully" + 기능 깨짐/현재 구현 이유/플랫폼/전체 맥락 |
 | "Cannot verify without [X]" | 동 섹션의 can't-verify 가이드 | "proceed?" 대신 "추측 금지, rationale에 한계 명시" |
 | YAGNI Check | YAGNI Check for "Professional" Features | grep으로 사용처 확인 → 안 쓰이면 FP, 그대로 |
-| When a Finding Is a False Positive | When To Push Back | "push back"을 "label FP"로 |
+| When a Finding Is a False Positive | When To Push Back | "push back"을 "label FP"로. **단 FP 경계 문단은 우리 추가** (아래) |
 | The Bottom Line | The Bottom Line | "suggestions to evaluate, not orders to follow" 그대로 |
 
 ### 원본에 **없던** 우리 추가 (두 축 판정)
@@ -41,6 +41,7 @@
 
 - **The Two Axes** — `blocks_merge` × `auto_fixable`(+N-a/N-b). 정의·근거는 [two-axis-fix-model.md](./two-axis-fix-model.md)에 일원화.
 - **Output Format 스키마** — TP/FP + rationale + 두 축을 구조화 출력.
+- **FP 경계 문단** (When a Finding Is a False Positive 섹션 내) — "FP는 코드가 실제로 문제없을 때만; 실재 결함은 fix가 범위 밖(N-a)이거나 계약 미정(N-b)이어도 TP". 두 축과 직접 묶이는 self-authored 규칙(원본엔 없음). 이슈 #1 배치 2에서 FP↔noted 경계 분열이 관찰되어 추가.
 
 ### 원본에서 **버린** 것
 

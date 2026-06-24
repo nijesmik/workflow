@@ -1,67 +1,62 @@
-# 결정: 두 축 판정 모델 (blocks_merge × auto_fixable)
+# 두 축 fix-결정 모델
 
-`pr-review-finding-validator`가 각 TP에 다는 두 판정 — `blocks_merge`와 `auto_fixable` —
-의 설계 근거를 기록한다. (ADR 성격)
+`pr-review-finding-validator`는 각 true-positive finding에 두 개의 독립 판정을 부여한다 —
+머지 차단 여부(`blocks_merge`)와 자동 수정 가능 여부(`auto_fixable`). 이 두 판정이
+`pr-review` Fix 단계의 동작을 결정한다. 이 문서는 두 축의 정의와 설계 근거를 기술한다.
 
-> **상태**: 채택됨 (추론 기반 설계). 실사용 검증은 미완 → [#1](https://github.com/nijesmik/workflow/issues/1)
+## 두 축
 
-## 맥락 — 심각도 단일 축이 틀렸다
+### blocks_merge — 영향
+결함이 머지를 차단해야 하는지를 나타낸다. PR의 머지 가능 여부, 그리고 코멘트에서 별도로
+강조할지를 결정한다.
 
-처음 fix 범위를 **심각도(Critical/Important/Suggestion)로 갈랐다** — Critical/Important는
-자동수정, Suggestion은 기록. 이게 양 끝에서 틀린다:
+### auto_fixable — 수정의 성격
+파이프라인이 사람의 판단 없이 결함을 안전하게 수정할 수 있는지를 나타낸다. 심각도와
+무관하며, 다음 세 조건을 **모두** 충족할 때 `Y`이다.
 
-- **Suggestion인데 1줄짜리 명백·안전한 개선** → 심각도 기준이면 버려짐 (놓치면 아까운 공짜 개선)
-- **Critical인데 재설계가 필요** → 심각도 기준이면 "고쳐라"인데, 블라인드 자동수정이 가장 위험한 지점
+1. **In-scope** — 수정이 PR diff에 이미 포함된 파일 범위 안에 머문다.
+2. **Low-risk / 명확** — 올바른 수정이 일의적이다. 설계 트레이드오프, public API·계약 변경, 동작 재설계가 없다.
+3. **Bounded** — 변경이 작고 국소적이다.
 
-즉 **심각도는 "고칠 가치/안전성"의 축이 아니다.** 한 축으로 두 개의 다른 질문에 답하려 한 게 오류.
+하나라도 충족하지 못하면 `N`이며, 사유에 따라 둘로 구분한다.
 
-## 결정 — 두 질문은 직교하므로 두 축으로 분리
+- **N-a (범위·규모)** — 수정 자체는 기계적으로 명확하나, 규모가 크거나 PR diff 밖의 파일을 건드린다.
+- **N-b (모호·설계)** — 올바른 수정이 일의적이지 않다. 트레이드오프나 재설계가 필요하다.
 
-| 축 | 답하는 질문 | 입력 |
-|---|---|---|
-| **A — `blocks_merge`** | 이게 머지를 막아야 하나? | 영향·심각도 |
-| **B — `auto_fixable`** | 사람 판단 없이 지금 안전하게 고칠 수 있나? | 수정의 성격 (in-scope · low-risk · bounded) |
+## 두 축을 분리하는 근거
 
-두 질문은 상관이 없다(직교). `auto_fixable`은 **셋을 다 충족**해야 `Y`:
-1. **In-scope** — 수정이 이미 PR diff에 있는 파일 안에 머문다.
-2. **Low-risk / 명백** — 올바른 수정이 일의적. 설계 트레이드오프·계약 변경·재설계 없음.
-3. **Bounded** — 작고 국소적.
+영향과 수정 가능성은 서로 독립적인 차원이다. 단일 축으로 두 결정을 모두 내리면 두 영역에서
+오분류가 발생한다.
 
-## 분리의 핵심 이득 — 위험 사분면이 드러난다
+- 영향이 작더라도 수정이 명확하고 국소적인 결함은 처리할 가치가 있다.
+- 영향이 크더라도 재설계가 필요한 결함은 추측에 기반해 자동 수정되어서는 안 된다.
 
-| blocks_merge | auto_fixable | 단일(심각도) 축의 오류 | 두 축의 처리 |
+두 축을 분리하면 **`blocks_merge=Y`이면서 `auto_fixable=N`인 영역**이 명시적으로 드러나며,
+이 영역에만 별도의 안전장치(잠정 수정 + 사람 확인)를 적용할 수 있다.
+
+## 결정 매트릭스
+
+| blocks_merge | auto_fixable | 동작 | resolution |
 |---|---|---|---|
-| Y | Y | — | 자동수정 |
-| **Y** | **N** | "Critical이니 자동수정" → 추측 수정 위험 | **잠정수정 + 사람 확인 (안전판)** |
-| N | Y | "Suggestion이니 버림" → 공짜 안전개선 놓침 | 자동수정(줍는다) |
-| N | N | — | 기록만 |
+| Y | Y | 자동 수정 | `Fixed` |
+| Y | N-a | 자동 수정 (재리뷰 강제) | `Fixed` |
+| Y | N-b | 잠정 수정 (재리뷰), 해결로 집계하지 않음 | `Tentative` |
+| N | Y | 자동 수정 | `Fixed` |
+| N | N-a / N-b | 코드 변경 없이 기록 | `noted` |
 
-단일 축이면 **blocks_merge=Y & auto_fixable=N** 사분면이 "Critical 자동수정"으로 묻힌다.
-분리하니 거기만 따로 안전판(잠정 라벨 + 머지 게이트)을 걸 수 있다.
+False positive는 매트릭스 밖이다 — 코드 변경 없이 사유만 기록한다.
 
-## not-auto-fixable 세분 (N-a / N-b) — 기준은 "재리뷰가 안전망이 되는가"
+## N-a와 N-b의 구분 근거
 
-`blocks_merge=Y & auto_fixable=N`을 자동수정할지 결정하려면 이유를 쪼개야 했다:
+두 사유의 차이는 **재리뷰가 안전장치로 기능하는지**에 있다.
 
-- **N-a (범위·크기)** — 수정이 기계적으로 명백한데 단지 크거나 PR 밖 파일을 건드림.
-  → 재리뷰가 "맞게 고쳤나"를 검증할 수 있음 → **자동수정 + 재리뷰**.
-- **N-b (모호·설계·계약)** — 올바른 수정이 일의적이지 않음(트레이드오프/재설계).
-  → 재리뷰는 "에이전트가 고른 설계가 의도에 맞나"를 검증 **못 함** → **잠정수정 + 사람 확인**.
+- **N-a** — 수정이 기계적으로 명확하므로, 재리뷰가 "올바르게 수정되었는가"를 검증할 수 있다. 따라서 자동 수정 후 재리뷰한다.
+- **N-b** — 올바른 수정이 일의적이지 않으므로, 재리뷰는 "선택한 설계가 의도에 부합하는가"를 검증할 수 없다. 따라서 잠정 수정에 그치고 사람 확인으로 넘긴다.
 
-## 결과 (consequences)
-
-- validator는 TP마다 `blocks_merge`(Y/N) + `auto_fixable`(Y/N-a/N-b)을 산출한다.
-- `pr-review` 4단계 Fix가 이 두 값으로 [매트릭스](../skills/pr-review/SKILL.md)를 따라 동작한다.
-- N-b는 "Tentative fix" 라벨 + blocks-merge 유지의 트리거다.
-
-## 한계 / 미검증
-
-이건 **추론으로 도출한 설계 휴리스틱**이지 데이터로 검증한 모델이 아니다. in-scope·low-risk·
-bounded의 경계는 validator의 판단에 맡긴 주관적 선이고, 실제 PR들에 돌려보기 전엔 두 축이
-충분히 갈라주는지(특히 "low-risk"의 회색지대, N-a/N-b 구분의 일관성) 확신할 수 없다.
-
-→ 실사용 검증은 후속 이슈로 분리: **[#1 두 축 판정 모델 실사용 검증](https://github.com/nijesmik/workflow/issues/1)**
+`N-b`는 "Tentative" 표기와 머지 차단 유지의 트리거이며, 추측에 기반한 수정이 해결로 집계되어
+검토 없이 머지되는 것을 방지한다.
 
 ## 관련 파일
-- [agents/pr-review-finding-validator.md](../agents/pr-review-finding-validator.md) — The Two Axes 섹션
-- [docs/pr-review-finding-validator.md](./pr-review-finding-validator.md) — 출처(원본 vs 우리 추가) 구분
+
+- [agents/pr-review-finding-validator.md](../agents/pr-review-finding-validator.md) — 두 축을 산출하는 검증 에이전트
+- [skills/pr-review/SKILL.md](../skills/pr-review/SKILL.md) — Fix 단계가 두 판정을 매트릭스에 따라 소비
