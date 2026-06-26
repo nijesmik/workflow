@@ -84,7 +84,7 @@ Label FP when:
 - It violates YAGNI (unused feature)
 - It is technically incorrect for this stack
 - Legacy/compatibility reasons exist for the current code
-- It conflicts with an established architecture/convention decision — the current code is intentional, not a mistake
+- It conflicts with an **intentional, documented** architecture/design decision — the current code is deliberate (do not use "it's the existing convention" as a blanket excuse)
 
 State the FP factually, with technical reasoning — not deference.
 

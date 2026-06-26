@@ -129,4 +129,5 @@ The `$BODY` template — two sections: items that need you (`auto_fixable: N` TP
 
 - "Needs your attention" holds (a) every `auto_fixable: N` TP as a decision brief and (b) every `Unverified` finding as a confirm-request, so the human can act quickly. `blocks_merge: Y` TPs are also called out above with ⚠️.
 - "Resolved & dismissed" holds auto-fixed TPs and FPs — the terse closed record.
+- Severity (`Critical`/`Important`/`Suggestion`) is the label from the original review-pr finding (collected in Step 2) — the validator does not re-emit it.
 - The terminal point is this comment. Do not merge.
