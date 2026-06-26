@@ -85,43 +85,55 @@ State the FP factually, with technical reasoning — not deference.
 
 **FP is only for findings that are not a real problem.** A real defect that this PR's
 code reaches or relies on is a **TP** — even if its root lives in a file outside the PR's
-diff (→ `auto_fixable: N-a`) or the correct fix needs a design/contract decision
-(→ `auto_fixable: N-b`). Do **not** dismiss a genuine defect as FP merely because the fix
-is out of scope or the right behavior is undecided; record it as a TP (noted/tentative)
-so the human sees it. Reserve FP for "the code is actually fine."
+diff, or the correct fix needs a design/contract decision. In those cases label it
+`auto_fixable: N` (noted), not FP. Do **not** dismiss a genuine defect as FP merely because
+the fix is out of scope or the right behavior is undecided. Reserve FP for "the code is
+actually fine."
 
-## The Two Axes
+## The Decision
 
-For every finding you judge **TP**, attach two independent verdicts.
+For every finding, answer up to three nested questions.
 
-### Axis A — blocks_merge? (severity / impact)
-Should this issue block merge? Drives whether the PR is mergeable and whether it gets called out loudly.
+1. **Is it real?** → `TP` or `FP`. (FP: record the rationale; done.)
+2. **(TP) Can the correct fix be determined and applied without a human policy / design / contract decision?** → `auto_fixable: Y` or `N`.
+   - `Y` — the fix is unambiguous and mechanical; it will be applied. **File location and size do not matter.**
+   - `N` — the fix requires a human decision; do **not** guess. It will be recorded with a decision brief.
+3. **(only when `auto_fixable: N`) Does it block merge?** → `blocks_merge: Y` or `N`. This is meaningful only for un-fixed findings — it tells the human which still-open items must be resolved before merge.
 
-### Axis B — auto_fixable? (nature of the fix, independent of severity)
-`Y` only when **all three** hold:
-1. **In-scope** — the fix stays within files already in the PR diff.
-2. **Low-risk / unambiguous** — the correct fix is singular: no design trade-off, no public API/contract change, no behavioral redesign.
-3. **Bounded** — small and local.
-
-If any is false, it is not auto-fixable. Distinguish the reason:
-- `N-a` (scope/size) — the fix is mechanically obvious but is large or touches files outside the PR.
-- `N-b` (ambiguous/design/contract) — the correct fix is not singular (needs a trade-off or redesign).
-
-A low-severity finding (Suggestion) that is obvious and local is still `auto_fixable: Y`. A high-severity finding (Critical) that needs redesign is `N-b`.
+There is no in-scope/out-of-scope or size criterion, and no tentative fix: a real defect whose fix is unambiguous is fixed; one that needs a decision is noted.
 
 ## Output Format
 
-Emit exactly this block for every finding you validated. Do not modify code — judge only.
+Emit exactly one block per finding. Judge only — do not modify code.
 
+False positive:
 ```
-### <short description> (`file:line`)
-- verdict: TP | FP
-- rationale: <one line, grounded in the code you actually inspected>
+### <short> (`file:line`)
+- verdict: FP
+- rationale: <one line, grounded in the code you inspected>
+```
+
+True positive, auto-fixable:
+```
+### <short> (`file:line`)
+- verdict: TP
+- rationale: <one line>
+- auto_fixable: Y
+```
+
+True positive, needs a human decision:
+```
+### <short> (`file:line`)
+- verdict: TP
+- auto_fixable: N
 - blocks_merge: Y | N
-- auto_fixable: Y | N-a | N-b
+- decision_brief:
+  - issue: <what is wrong, where, with the relevant code context>
+  - decision_needed: <the policy/design/contract question, phrased as a question>
+  - options: <candidate approaches and the trade-off of each>
 ```
 
-For an FP, set `blocks_merge` and `auto_fixable` to `-`. Cover every finding — none skipped.
+Cover every finding — none skipped.
 
 ## The Bottom Line
 
