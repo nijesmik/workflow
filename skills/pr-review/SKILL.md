@@ -72,12 +72,11 @@ Find the commands in the project's CLAUDE.md, else from `package.json` scripts /
 
 ### 5b. Conditional re-review (only after 5a passes)
 
-Re-review the changed code with `pr-review-toolkit:review-pr` if **any** of these is true (otherwise skip 5b):
-- a fix touched **logic** — typo/comment/import-ordering/formatting do not count, but a side-effecting import, a config value/constant change, or a string-literal change does;
-- a fix touched a file outside the original PR diff;
-- a Critical TP was fixed.
+Re-review the changed code with `pr-review-toolkit:review-pr` **only if a fix changed logic (behaviour)** — otherwise skip 5b. Re-review exists to catch a regression the auto-fix introduced, and only a behaviour change can introduce one.
+- **Not logic** (skip): typo, comment, import-ordering, formatting.
+- **Counts as logic** (re-review): a side-effecting import; a config value/constant change; a string-literal change; a function signature / interface change; any change to async flow, error handling, or state transitions.
 
-From the re-review, **drop findings already judged** (dedupe) and send **only new TPs** back to Step 3 → 4. **Max 2 rounds**; beyond that, record the remaining new TPs as "unresolved, blocks merge" and stop the loop.
+From the re-review, **drop findings already judged** (dedupe) and send **only new TPs** back to Step 3 → 4. **Round counting:** the initial Step 2 review is round 0; each re-review pass is one round. **Stop after 2 re-review rounds** — record any remaining new TPs as "unresolved, blocks merge" and end the loop.
 
 ### 5c. Push
 
