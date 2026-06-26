@@ -3,7 +3,7 @@
 `agents/pr-review-finding-validator.md`는 두 출처의 합성이다:
 
 1. **`superpowers:receiving-code-review`** — 검증 원칙(어떻게 검증하고 회의할지)
-2. **우리 설계 (brainstorming)** — 두 축 판정 모델(판정 결과를 `pr-review`가 어떻게 소비할지)
+2. **우리 설계 (brainstorming)** — 단일 결정 모델(판정 결과를 `pr-review`가 어떻게 소비할지)
 
 이 문서는 어느 줄이 어디서 왔는지를 명시한다.
 
@@ -35,13 +35,13 @@
 | When a Finding Is a False Positive | When To Push Back | "push back"을 "label FP"로. **단 FP 경계 문단은 우리 추가** (아래) |
 | The Bottom Line | The Bottom Line | "suggestions to evaluate, not orders to follow" 그대로 |
 
-### 원본에 **없던** 우리 추가 (두 축 판정)
+### 원본에 **없던** 우리 추가 (단일 결정 모델)
 
-원본에 없는 두 가지를 얹었다 — pr-review의 fix 결정 로직을 위해 brainstorming에서 설계:
+원본에 없는 것을 얹었다 — pr-review의 fix 결정 로직을 위해 설계:
 
-- **The Two Axes** — `blocks_merge` × `auto_fixable`(+N-a/N-b). 정의·근거는 [two-axis-fix-model.md](./two-axis-fix-model.md)에 일원화.
-- **Output Format 스키마** — TP/FP + rationale + 두 축을 구조화 출력.
-- **FP 경계 문단** (When a Finding Is a False Positive 섹션 내) — "FP는 코드가 실제로 문제없을 때만; 실재 결함은 fix가 범위 밖(N-a)이거나 계약 미정(N-b)이어도 TP". 두 축과 직접 묶이는 self-authored 규칙(원본엔 없음). 이슈 #1 배치 2에서 FP↔noted 경계 분열이 관찰되어 추가.
+- **The Decision** — 중첩된 세 질문(실재 → 판단 없이 수정 가능(`auto_fixable`) → (불가면) 머지 차단(`blocks_merge`)). 정의·근거는 [fix-decision-model.md](./fix-decision-model.md)에 일원화.
+- **Output Format 스키마** — verdict + (TP면) auto_fixable, noted엔 decision_brief를 구조화 출력.
+- **FP 경계 문단** (When a Finding Is a False Positive 섹션 내) — "FP는 코드가 실제로 문제없을 때만; 실재 결함은 fix가 범위 밖이거나 계약 미정이어도 `auto_fixable: N`(noted)". self-authored 규칙(원본엔 없음).
 
 ### 원본에서 **버린** 것
 
@@ -55,8 +55,8 @@
 ## 왜 두 출처를 나눴나
 
 - 원본의 검증 원칙은 **이미 검증된 자산**이라 그대로 쓸수록 좋다 — 빈 동의를 막고, 코드 대조를 강제하고, 외부 제안에 회의적이게 한다.
-- 두 축은 우리 파이프라인 고유의 **소비 계약**이다 — `pr-review` 4단계 Fix가 이 verdict를 그대로 받아 매트릭스대로 처리한다.
-- 둘을 섞지 않고 출처를 명시해두면, 원본 receiving-code-review가 업데이트될 때 무엇을 따라 갱신할지(검증 원칙)와 우리가 자체 관리할지(두 축)가 분명해진다.
+- 우리가 더한 결정 모델은 이 파이프라인 고유의 **소비 계약**이다 — `pr-review`의 Fix 단계가 이 verdict를 그대로 받아 동작한다.
+- 둘을 섞지 않고 출처를 명시해두면, 원본 receiving-code-review가 업데이트될 때 무엇을 따라 갱신할지(검증 원칙)와 우리가 자체 관리할지(결정 모델)가 분명해진다.
 
 ## 관련 파일
 
