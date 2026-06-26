@@ -35,7 +35,7 @@ Invoke the `pr-review-toolkit:review-pr` skill with no arguments (it picks appli
 
 Group the findings **by file/module** and distribute them to the `pr-review-finding-validator` subagent (`Task` tool). If a group is too large (roughly 6+), split it further on file boundaries. If few findings cluster in one area, a single validator suffices. Give each validator its group's findings + the diff of the relevant files, and have it load the code directly to judge.
 
-Validator output (per finding): `verdict` (TP/FP) + rationale + `blocks_merge` (Y/N) + `auto_fixable` (Y/N); TP with `auto_fixable: N` also carries a `decision_brief`. The validator is the device that avoids author bias — the main agent does not overturn its verdicts.
+Validator output (per finding): `verdict` (`TP`/`FP`/`Unverified`) + rationale. A `TP` also gets `auto_fixable` (Y/N), and an `auto_fixable: N` TP a `decision_brief`. `Unverified` means the validator couldn't confirm the finding from the code (runtime/platform-dependent) — surface it to the human, never auto-fix. The validator is the device that avoids author bias — the main agent does not overturn its verdicts.
 
 ## Step 4 — Fix (no push)
 
@@ -51,6 +51,7 @@ Handle each finding per its verdict. **The main agent makes the edits directly**
 - **TP, `auto_fixable: Y`** → apply the fix. **File location and size are irrelevant.** Commit each finding **right after fixing it** (before touching the next) with `commit-commands:commit`, **locally only** — so finding↔commit stays one-to-one. The `<sha>` in resolution is that commit's hash.
 - **TP, `auto_fixable: N`** → no code change. Carry its `decision_brief` and `blocks_merge` to Step 6.
 - **FP** → no code change. Carry its rationale to Step 6.
+- **Unverified** → no code change (you can't safely fix what you can't confirm). Carry its rationale (what's missing) to Step 6.
 
 **Do not push yet** — push happens in Step 5.
 
@@ -86,7 +87,7 @@ else
 fi
 ```
 
-Two sections: TPs that need a human decision come first as **detailed briefs**; resolved/dismissed items go below as a terse audit table. Omit a section if it has no rows.
+Two sections: items that need you — `auto_fixable: N` TP decisions and `Unverified` confirmations — come first as **detailed briefs**; resolved/dismissed items go below as a terse audit table. Omit a section if it has no rows.
 
 ```markdown
 ## pr-review result
@@ -94,12 +95,16 @@ Two sections: TPs that need a human decision come first as **detailed briefs**; 
 <!-- Only if any auto_fixable:N finding has blocks_merge:Y -->
 > ⚠️ **Unresolved merge blockers**: <items> — must be resolved before merge
 
-### Needs your attention — TPs that need your decision
-<!-- One block per auto_fixable:N TP. Omit this section if none. -->
+### Needs your attention
+<!-- auto_fixable:N TPs (a decision is needed) and Unverified findings (a confirmation is needed). Omit if none. -->
 #### <short> (`file:line`) — <Critical/Important/Suggestion>, blocks merge: <yes/no>
 - **Issue:** <what is wrong, where, with code context>
 - **Decision needed:** <the question to resolve>
 - **Options:** <candidate approaches and the trade-off of each>
+
+#### <short> (`file:line`) — Unverified
+- **Couldn't verify:** <what is missing — "Cannot verify without [X]">
+- **Please confirm:** whether this is a real issue.
 
 ### Resolved & dismissed
 <!-- Auto-fixed TPs and FPs. Omit this section if none. -->
@@ -111,6 +116,6 @@ Two sections: TPs that need a human decision come first as **detailed briefs**; 
 > ❌ lint/test/typecheck failed: <summary> (fix commits are local only, not pushed)
 ```
 
-- "Needs your attention" holds every `auto_fixable: N` TP as a detailed brief, so the human can decide quickly. Items with `blocks_merge: Y` are also called out above with ⚠️.
+- "Needs your attention" holds (a) every `auto_fixable: N` TP as a decision brief and (b) every `Unverified` finding as a confirm-request, so the human can act quickly. `blocks_merge: Y` TPs are also called out above with ⚠️.
 - "Resolved & dismissed" holds auto-fixed TPs and FPs — the terse closed record.
 - The terminal point is this comment. Do not merge.

@@ -57,9 +57,10 @@ BEFORE labeling a finding TP:
 IF the finding seems wrong:
   Label it FP with technical reasoning
 
-IF you can't easily verify:
-  Say so in the rationale: "Cannot verify without [X]"
-  Do not guess a verdict — state the limitation.
+IF you can't verify whether it is real (it depends on runtime / platform / state you cannot inspect):
+  Do NOT force it to TP or FP — forcing FP would silently dismiss a possibly-real defect.
+  Label it `Unverified` and say what is missing in the rationale ("Cannot verify without [X]"),
+  so a human is asked to confirm it.
 ```
 
 ## YAGNI Check for "Implement Properly" Findings
@@ -94,7 +95,7 @@ actually fine."
 
 For every finding, answer up to three nested questions.
 
-1. **Is it real?** → `TP` or `FP`. (FP: record the rationale; done.)
+1. **Is it real?** → `TP` (confirmed real), `FP` (confirmed not a problem), or `Unverified` (cannot confirm from the code — e.g. runtime/platform/state-dependent). FP and Unverified record only a rationale and stop here; a TP continues to question 2.
 2. **(TP) Can the correct fix be determined and applied without a human policy / design / contract decision?** → `auto_fixable: Y` or `N`.
    - `Y` — the fix is unambiguous and mechanical; it will be applied. **File location and size do not matter.**
    - `N` — the fix requires a human decision; do **not** guess. It will be recorded with a decision brief.
@@ -111,6 +112,13 @@ False positive:
 ### <short> (`file:line`)
 - verdict: FP
 - rationale: <one line, grounded in the code you inspected>
+```
+
+Unverified — cannot confirm whether it is real:
+```
+### <short> (`file:line`)
+- verdict: Unverified
+- rationale: <what is unverifiable and what is missing — "Cannot verify without [X]">
 ```
 
 True positive, auto-fixable:

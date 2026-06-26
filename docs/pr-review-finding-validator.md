@@ -29,7 +29,7 @@
 | The Validation Pattern | The Response Pattern | READ/UNDERSTAND/VERIFY/EVALUATE 보존, **IMPLEMENT 제거**하고 JUDGE로 |
 | Forbidden Responses | Forbidden Responses | "You're absolutely right!" 등 빈 동의 금지 그대로, 구현 관련 항목만 검증용으로 |
 | Verifying Each Finding (5점 체크리스트) | Source-Specific Handling → External Reviewers | 거의 그대로. "Be skeptical, but check carefully" + 기능 깨짐/현재 구현 이유/플랫폼/전체 맥락 |
-| "Cannot verify without [X]" | 동 섹션의 can't-verify 가이드 | "proceed?" 대신 "추측 금지, rationale에 한계 명시" |
+| "Cannot verify without [X]" | 동 섹션의 can't-verify 가이드 | 원문은 "사람에게 물어봐라"(investigate/ask/proceed). 비대화형이라 **`Unverified`로 표기해 코멘트로 사람에게 surface** — 불확실성을 사람에게 넘긴다는 원문 의도 유지 |
 | YAGNI Check | YAGNI Check for "Professional" Features | grep으로 사용처 확인 → 안 쓰이면 FP, 그대로 |
 | When a Finding Is a False Positive | When To Push Back | "push back"을 "label FP"로. **FP 경계 문단은 새로 더함** (아래 결정 모델) |
 | The Bottom Line | The Bottom Line | "suggestions to evaluate, not orders to follow" 그대로 |
@@ -44,7 +44,7 @@ review-pr가 낸 finding마다 중첩된 세 질문으로 판정하고, 그 판�
 
 ### 세 질문
 
-1. **실재하는가?** — `verdict`: `TP` 또는 `FP`. FP면 사유만 기록하고 종료한다.
+1. **실재하는가?** — `verdict`: `TP`(실재 확인) / `FP`(문제없음 확인) / `Unverified`(코드만으로는 확정 불가 — 런타임·플랫폼·상태 의존). FP·Unverified는 사유만 기록하고 종료한다.
 2. **(TP) 사람의 정책·설계·계약 판단 없이 올바른 fix를 결정·적용할 수 있는가?** — `auto_fixable`: `Y` 또는 `N`.
    - `Y` — fix가 일의적·기계적이다. 자동으로 수정한다. **파일 위치와 규모는 따지지 않는다.**
    - `N` — fix에 사람의 판단이 필요하다. 추측하지 않고 상세 브리프와 함께 기록(noted)한다.
@@ -56,6 +56,7 @@ review-pr가 낸 finding마다 중첩된 세 질문으로 판정하고, 그 판�
 - **TP + `auto_fixable=Y`** → 자동 수정. `Fixed in <sha>`.
 - **TP + `auto_fixable=N`** → 코드 변경 없이 상세 브리프(issue / decision_needed / options)와 `blocks_merge`를 기록.
 - **FP** → 코드 변경 없이 사유만 기록.
+- **Unverified** → 코드 변경 없이 "무엇이 없어 확정 못 했는지"를 기록하고, 코멘트의 Needs your attention에 올려 사람에게 확인을 요청한다.
 
 위와 함께 더한 것:
 - **Output Format 스키마** — verdict + (TP면) auto_fixable, noted엔 decision_brief를 구조화 출력.
