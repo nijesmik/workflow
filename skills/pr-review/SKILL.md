@@ -35,9 +35,9 @@ Invoke the `pr-review-toolkit:review-pr` skill with no arguments (it picks appli
 
 Group the findings **by file/module** and distribute them to the `pr-review-finding-validator` subagent (`Task` tool). If a group is too large (roughly 6+), split it further on file boundaries. If few findings cluster in one area, a single validator suffices. Give each validator its group's findings + the diff of the relevant files, and have it load the code directly to judge.
 
-Validator output (per finding): `verdict` (TP/FP) + rationale + `blocks_merge` (Y/N) + `auto_fixable` (Y/N-a/N-b). The validator is the device that avoids author bias — the main agent does not overturn its verdicts.
+Validator output (per finding): `verdict` (TP/FP) + rationale + `blocks_merge` (Y/N) + `auto_fixable` (Y/N); TP with `auto_fixable: N` also carries a `decision_brief`. The validator is the device that avoids author bias — the main agent does not overturn its verdicts.
 
-## Step 4 — Fix (two-axis matrix; no push)
+## Step 4 — Fix (no push)
 
 **Fix guard (check first):** determine whether the PR head branch is the repo's default **or a protected** branch.
 ```bash
@@ -46,19 +46,13 @@ gh repo view --json defaultBranchRef --jq .defaultBranchRef.name
 ```
 If the head is a default/protected branch (e.g. a release PR), confirm with the user before fixing. If it's a feature branch, proceed unattended.
 
-Handle each TP per the matrix. **The main agent makes the edits directly** with `Edit`/`Write` (the validator does not). The table is **TP-only**:
+Handle each finding per its verdict. **The main agent makes the edits directly** with `Edit`/`Write` (the validator does not):
 
-| blocks_merge | auto_fixable | action | resolution |
-|---|---|---|---|
-| Y | Y | auto-fix | `Fixed in <sha>` |
-| Y | N-a | auto-fix (forces Step 5 re-review) | `Fixed in <sha>` |
-| Y | N-b | attempt auto-fix (re-review), **not counted as resolved** | `Tentative fix in <sha> — design-level guess, needs human confirmation before merge` |
-| N | Y | auto-fix | `Fixed in <sha>` |
-| N | N-a or N-b | record only, no code change | `noted, recommended fix` |
+- **TP, `auto_fixable: Y`** → apply the fix. **File location and size are irrelevant.** Commit each finding **right after fixing it** (before touching the next) with `commit-commands:commit`, **locally only** — so finding↔commit stays one-to-one. The `<sha>` in resolution is that commit's hash.
+- **TP, `auto_fixable: N`** → no code change. Carry its `decision_brief` and `blocks_merge` to Step 6.
+- **FP** → no code change. Carry its rationale to Step 6.
 
-FP is outside the table — no code change; record only the FP rationale in the table.
-
-Commit each finding **right after fixing it** (before touching the next finding) with `commit-commands:commit`, **locally only** — so the working tree never mixes multiple findings and finding↔commit stays one-to-one. The `<sha>` in resolution is that commit's hash. **Do not push yet** — push happens in Step 5.
+**Do not push yet** — push happens in Step 5.
 
 ## Step 5 — Verify (pre-push gate)
 
@@ -71,7 +65,6 @@ The Step 4 fixes are still **local commits**. Proceed **in this order** so a bro
   1. A fix touched **logic** — typo/comment/import-ordering/formatting are excluded. But adding a side-effecting import, changing a config value/constant, or changing a string literal counts as logic.
   2. A fix touched a file outside the original PR diff
   3. A Critical TP was fixed
-  4. There is an N-a (forced) or N-b (tentative) fix
 
   If all are false, skip re-review.
 - From the re-review result, **exclude findings already judged** (dedupe) and send **only new TPs** back to Steps 3→4. **Max 2 rounds.** Beyond that, record remaining new TPs as "unresolved, blocks merge" and stop the loop.
@@ -93,31 +86,31 @@ else
 fi
 ```
 
-Use **two tables**: TPs that still need a human come first; resolved/dismissed items go below as the audit record. Omit a table if it has no rows.
+Two sections: TPs that need a human decision come first as **detailed briefs**; resolved/dismissed items go below as a terse audit table. Omit a section if it has no rows.
 
 ```markdown
 ## pr-review result
 
-<!-- Only if there are unresolved merge blockers -->
-> ⚠️ **Unresolved merge blockers**: <items> — need human confirmation before merge
+<!-- Only if any auto_fixable:N finding has blocks_merge:Y -->
+> ⚠️ **Unresolved merge blockers**: <items> — must be resolved before merge
 
-### Needs your attention — TPs not resolved
-<!-- Tentative (N-b), noted, and unresolved TPs. Omit this section if empty. -->
-| Finding | Severity | Verdict | Status / next step |
-| --- | --- | --- | --- |
-| <finding> (`file:line`) | Critical/Important/Suggestion | TP — rationale | Tentative fix in `<sha>` — confirm before merge / noted — recommended fix / unresolved — blocks merge |
+### Needs your attention — TPs that need your decision
+<!-- One block per auto_fixable:N TP. Omit this section if none. -->
+#### <short> (`file:line`) — <Critical/Important/Suggestion>, blocks merge: <yes/no>
+- **Issue:** <what is wrong, where, with code context>
+- **Decision needed:** <the question to resolve>
+- **Options:** <candidate approaches and the trade-off of each>
 
 ### Resolved & dismissed
-<!-- Auto-fixed TPs and FPs. Omit this section if empty. -->
+<!-- Auto-fixed TPs and FPs. Omit this section if none. -->
 | Finding | Severity | Verdict | Resolution |
 | --- | --- | --- | --- |
-| <finding> (`file:line`) | Critical/Important/Suggestion | TP/FP — rationale | Fixed in `<sha>` / Dismissed (FP) |
+| <finding> (`file:line`) | Critical/Important/Suggestion | TP/FP — rationale | Fixed in `<sha>` / Dismissed |
 
 <!-- On verify failure / push failure -->
 > ❌ lint/test/typecheck failed: <summary> (fix commits are local only, not pushed)
 ```
 
-- "Needs your attention" holds every TP that is **not** auto-resolved: N-b tentative fixes (confirm), noted TPs (decide/fix), and 2-round-overflow unresolved TPs (blocks merge). It comes first so the human's remaining work is up top.
-- "Resolved & dismissed" holds auto-fixed TPs and FPs — the closed record.
-- Unresolved blocks_merge TPs + all N-b tentative fixes are also called out **above both tables** with ⚠️.
+- "Needs your attention" holds every `auto_fixable: N` TP as a detailed brief, so the human can decide quickly. Items with `blocks_merge: Y` are also called out above with ⚠️.
+- "Resolved & dismissed" holds auto-fixed TPs and FPs — the terse closed record.
 - The terminal point is this comment. Do not merge.
