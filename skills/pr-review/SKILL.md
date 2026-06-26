@@ -7,8 +7,6 @@ description: Reviews the current branch's open PR end to end — review, validat
 
 Takes the **open PR** of the current branch as input and runs review → validate → fix → comment in sequence. Brings the PR to a mergeable + auditable state and **stops at the comment** (it does not merge or clean up).
 
-It does not own PR-creation conventions. Commit/PR creation is delegated to `commit-commands`, review to `pr-review-toolkit`. Conventions such as the base branch are discovered at runtime (never hardcoded).
-
 ## Only two human gates
 1. Confirming PR creation when none exists (Step 1)
 2. Confirming a fix commit when the PR head is a default/protected branch (Step 4)
@@ -41,7 +39,7 @@ Validator output, per finding (this is the contract Steps 4 and 6 consume):
 - `decision_brief` (issue / decision_needed / options) — on an `auto_fixable: N` TP only.
 - `blocks_merge`: `Y` / `N` — on an `auto_fixable: N` TP only.
 
-`Unverified` means the validator couldn't confirm the finding from the code (runtime/platform-dependent, or too vague) — surface it to the human, never auto-fix. The validator avoids author bias — the main agent does not overturn its verdicts.
+`Unverified` means the validator couldn't confirm the finding from the code (runtime/platform-dependent, or too vague) — surface it to the human, never auto-fix. The main agent does not overturn the validator's verdicts.
 
 ## Step 4 — Fix (no push)
 
@@ -54,7 +52,7 @@ If the head is a default/protected branch (e.g. a release PR): **confirm with th
 
 Handle each finding per its verdict. **The main agent makes the edits directly** with `Edit`/`Write` (the validator does not):
 
-- **TP, `auto_fixable: Y`** → apply the fix. **A fix that lands in a file outside the PR diff, or a large fix, is still applied — location and size are not a reason to withhold it.** Commit each finding **right after fixing it** (before touching the next) with `commit-commands:commit`, **locally only** — so finding↔commit stays one-to-one. The `<sha>` in resolution is that commit's hash.
+- **TP, `auto_fixable: Y`** → apply the fix (wherever it lands). Commit each finding **right after fixing it** (before touching the next) with `commit-commands:commit`, **locally only** — so finding↔commit stays one-to-one. The `<sha>` in resolution is that commit's hash.
 - **TP, `auto_fixable: N`** → no code change. Carry its `decision_brief` and `blocks_merge` to Step 6.
 - **FP** → no code change. Carry its rationale to Step 6.
 - **Unverified** → no code change (you can't safely fix what you can't confirm). Carry its rationale (what's missing) to Step 6.
@@ -63,7 +61,7 @@ Handle each finding per its verdict. **The main agent makes the edits directly**
 
 ## Step 5 — Verify (pre-push gate)
 
-The Step 4 fixes are still **local commits**. Run 5a → 5b → 5c in order, so a broken commit never reaches the remote first.
+The Step 4 fixes are still **local commits**. Run 5a → 5b → 5c in order.
 
 ### 5a. lint/test/typecheck (always, first)
 
@@ -126,7 +124,6 @@ The `$BODY` template — two sections: items that need you (`auto_fixable: N` TP
 > ❌ lint/test/typecheck failed: <summary> (fix commits are local only, not pushed)
 ```
 
-- "Needs your attention" holds (a) every `auto_fixable: N` TP as a decision brief and (b) every `Unverified` finding as a confirm-request, so the human can act quickly. `blocks_merge: Y` TPs are also called out above with ⚠️.
-- "Resolved & dismissed" holds auto-fixed TPs and FPs — the terse closed record.
-- Severity (`Critical`/`Important`/`Suggestion`) is the label from the original review-pr finding (collected in Step 2) — the validator does not re-emit it.
+- `blocks_merge: Y` items are called out above the tables with ⚠️.
+- Severity (`Critical`/`Important`/`Suggestion`) comes from the original review-pr finding (Step 2) — the validator does not emit it.
 - The terminal point is this comment. Do not merge.
