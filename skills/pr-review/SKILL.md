@@ -35,7 +35,13 @@ Invoke the `pr-review-toolkit:review-pr` skill with no arguments (it picks appli
 
 Group the findings **by file/module** and distribute them to the `pr-review-finding-validator` subagent (`Task` tool). If a group is too large (roughly 6+), split it further on file boundaries. If few findings cluster in one area, a single validator suffices. Give each validator its group's findings + the diff of the relevant files, and have it load the code directly to judge.
 
-Validator output (per finding): `verdict` (`TP`/`FP`/`Unverified`) + rationale. A `TP` also gets `auto_fixable` (Y/N), and an `auto_fixable: N` TP a `decision_brief`. `Unverified` means the validator couldn't confirm the finding from the code (runtime/platform-dependent) — surface it to the human, never auto-fix. The validator is the device that avoids author bias — the main agent does not overturn its verdicts.
+Validator output, per finding (this is the contract Steps 4 and 6 consume):
+- `verdict`: `TP` / `FP` / `Unverified` — always, with a `rationale`.
+- `auto_fixable`: `Y` / `N` — on a `TP` only.
+- `decision_brief` (issue / decision_needed / options) — on an `auto_fixable: N` TP only.
+- `blocks_merge`: `Y` / `N` — on an `auto_fixable: N` TP only.
+
+`Unverified` means the validator couldn't confirm the finding from the code (runtime/platform-dependent, or too vague) — surface it to the human, never auto-fix. The validator avoids author bias — the main agent does not overturn its verdicts.
 
 ## Step 4 — Fix (no push)
 
@@ -44,11 +50,11 @@ Validator output (per finding): `verdict` (`TP`/`FP`/`Unverified`) + rationale. 
 gh repo view --json defaultBranchRef --jq .defaultBranchRef.name
 # Protected rules too, if possible: gh api repos/{owner}/{repo}/branches/<head>/protection (404 = unprotected)
 ```
-If the head is a default/protected branch (e.g. a release PR), confirm with the user before fixing. If it's a feature branch, proceed unattended.
+If the head is a default/protected branch (e.g. a release PR): **confirm with the user** — on approval continue below, on decline stop. If it's a feature branch: proceed unattended.
 
 Handle each finding per its verdict. **The main agent makes the edits directly** with `Edit`/`Write` (the validator does not):
 
-- **TP, `auto_fixable: Y`** → apply the fix. **File location and size are irrelevant.** Commit each finding **right after fixing it** (before touching the next) with `commit-commands:commit`, **locally only** — so finding↔commit stays one-to-one. The `<sha>` in resolution is that commit's hash.
+- **TP, `auto_fixable: Y`** → apply the fix. **A fix that lands in a file outside the PR diff, or a large fix, is still applied — location and size are not a reason to withhold it.** Commit each finding **right after fixing it** (before touching the next) with `commit-commands:commit`, **locally only** — so finding↔commit stays one-to-one. The `<sha>` in resolution is that commit's hash.
 - **TP, `auto_fixable: N`** → no code change. Carry its `decision_brief` and `blocks_merge` to Step 6.
 - **FP** → no code change. Carry its rationale to Step 6.
 - **Unverified** → no code change (you can't safely fix what you can't confirm). Carry its rationale (what's missing) to Step 6.
@@ -57,26 +63,31 @@ Handle each finding per its verdict. **The main agent makes the edits directly**
 
 ## Step 5 — Verify (pre-push gate)
 
-The Step 4 fixes are still **local commits**. Proceed **in this order** so a broken commit never reaches the remote first.
+The Step 4 fixes are still **local commits**. Run 5a → 5b → 5c in order, so a broken commit never reaches the remote first.
 
-**(1) lint/test/typecheck — always, and first.** Find the commands in the project's CLAUDE.md, else from `package.json` scripts / Makefile / pyproject, etc. (if none found, note it in the comment).
-- **If they fail, stop here**: do not push (broken commits stay local), record ❌, go to Step 6. **Do not evaluate re-review** (verification failure takes priority over re-review).
+### 5a. lint/test/typecheck (always, first)
 
-**(2) Conditional re-review, only after verification passes.** If any of these is true, re-review with `pr-review-toolkit:review-pr`:
-  1. A fix touched **logic** — typo/comment/import-ordering/formatting are excluded. But adding a side-effecting import, changing a config value/constant, or changing a string literal counts as logic.
-  2. A fix touched a file outside the original PR diff
-  3. A Critical TP was fixed
+Find the commands in the project's CLAUDE.md, else from `package.json` scripts / Makefile / pyproject, etc. (if none found, note it in the comment).
+- **If they fail:** stop here — do not push (broken commits stay local), record ❌, go to Step 6. Skip 5b (a verification failure takes priority over re-review).
 
-  If all are false, skip re-review.
-- From the re-review result, **exclude findings already judged** (dedupe) and send **only new TPs** back to Steps 3→4. **Max 2 rounds.** Beyond that, record remaining new TPs as "unresolved, blocks merge" and stop the loop.
+### 5b. Conditional re-review (only after 5a passes)
 
-**(3) push.** Once verification passes and the loop ends, push the local commits. **Even if unresolved TPs remain, push the fix commits that already passed verification** (the remainder is reported in the comment and does not block the push). On a rejected push (non-fast-forward), `git pull --rebase` → **re-run lint/test/typecheck** → push if it passes; if it fails, record "push failed" and go to Step 6.
+Re-review the changed code with `pr-review-toolkit:review-pr` if **any** of these is true (otherwise skip 5b):
+- a fix touched **logic** — typo/comment/import-ordering/formatting do not count, but a side-effecting import, a config value/constant change, or a string-literal change does;
+- a fix touched a file outside the original PR diff;
+- a Critical TP was fixed.
+
+From the re-review, **drop findings already judged** (dedupe) and send **only new TPs** back to Step 3 → 4. **Max 2 rounds**; beyond that, record the remaining new TPs as "unresolved, blocks merge" and stop the loop.
+
+### 5c. Push
+
+Once 5a passes and the loop has ended, push the local commits. **Unresolved TPs do not block the push** — push the fix commits that already passed verification (the remainder is reported in the comment). On a rejected push (non-fast-forward): `git pull --rebase` → **re-run 5a** → push if it passes; if it fails, record "push failed" and go to Step 6.
 
 ## Step 6 — Comment
 
 **Every termination path after the PR is secured in Step 1** (success / verification failure / 2-round overflow / push failure) posts this comment. Exception: if Step 1 never obtained a PR (nothing to comment on), tell the user and stop. If the `gh pr comment`/`gh api` call itself fails, report the result to the user directly.
 
-**Update the existing comment (avoid duplicates):** find the existing comment by the marker `## pr-review result` and edit it:
+**Post one comment per PR (no duplicates).** Build `$BODY` from the template below, then upsert it — edit the existing comment carrying the marker `## pr-review result` if there is one, else create a new comment:
 ```bash
 id=$(gh api "repos/{owner}/{repo}/issues/<number>/comments" \
        --jq '.[] | select(.body | startswith("## pr-review result")) | .id' | head -1)
@@ -87,7 +98,7 @@ else
 fi
 ```
 
-Two sections: items that need you — `auto_fixable: N` TP decisions and `Unverified` confirmations — come first as **detailed briefs**; resolved/dismissed items go below as a terse audit table. Omit a section if it has no rows.
+The `$BODY` template — two sections: items that need you (`auto_fixable: N` TP decisions and `Unverified` confirmations) come first as **detailed briefs**; resolved/dismissed items go below as a terse audit table. Omit a section if it has no rows.
 
 ```markdown
 ## pr-review result
