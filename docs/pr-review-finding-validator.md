@@ -27,11 +27,13 @@
 |---|---|---|
 | Overview / Core principle | Overview | "Verify before **judging**"(원본은 implementing), 사회적 편안함보다 기술적 정확성은 그대로 |
 | The Validation Pattern | The Response Pattern | READ/UNDERSTAND/VERIFY/EVALUATE 보존, **IMPLEMENT 제거**하고 JUDGE로 |
-| Forbidden Responses | Forbidden Responses | "You're absolutely right!" 등 빈 동의 금지 그대로, 구현 관련 항목만 검증용으로 |
+| Forbidden Responses | Forbidden Responses | "You're absolutely right!" 등 빈 동의 금지 그대로, "actions > words"(코드를 실제로 읽어 근거를 대라)도 유지, 구현 관련 항목만 검증용으로 |
 | Verifying Each Finding (5점 체크리스트) | Source-Specific Handling → External Reviewers | 거의 그대로. "Be skeptical, but check carefully" + 기능 깨짐/현재 구현 이유/플랫폼/전체 맥락 |
 | "Cannot verify without [X]" | 동 섹션의 can't-verify 가이드 | 원문은 "사람에게 물어봐라"(investigate/ask/proceed). 비대화형이라 **`Unverified`로 표기해 코멘트로 사람에게 surface** — 불확실성을 사람에게 넘긴다는 원문 의도 유지 |
+| Handling Unclear Feedback | Handling Unclear Feedback | finding 뜻 자체가 모호하면 일부 판정 말고 `Unverified`로 (can't-verify와 합쳐 처리) |
 | YAGNI Check | YAGNI Check for "Professional" Features | grep으로 사용처 확인 → 안 쓰이면 FP, 그대로 |
-| When a Finding Is a False Positive | When To Push Back | "push back"을 "label FP"로. **FP 경계 문단은 새로 더함** (아래 결정 모델) |
+| When a Finding Is a False Positive | When To Push Back | "push back"을 "label FP"로. 원본 6개 트리거(아키텍처/컨벤션 충돌 포함) 반영. **FP 경계 문단은 새로 더함** (아래 결정 모델) |
+| Examples | Real Examples | 판정 예시(FP / Unverified / TP-noted / TP-fix)로 번역 |
 | The Bottom Line | The Bottom Line | "suggestions to evaluate, not orders to follow" 그대로 |
 
 ## 더한 것 — 결정 모델
@@ -44,7 +46,7 @@ review-pr가 낸 finding마다 중첩된 세 질문으로 판정하고, 그 판�
 
 ### 세 질문
 
-1. **실재하는가?** — `verdict`: `TP`(실재 확인) / `FP`(문제없음 확인) / `Unverified`(코드만으로는 확정 불가 — 런타임·플랫폼·상태 의존). FP·Unverified는 사유만 기록하고 종료한다.
+1. **실재하는가?** — `verdict`: `TP`(실재 확인) / `FP`(문제없음 확인) / `Unverified`(코드만으로는 확정 불가 — 런타임·플랫폼·상태 의존, 또는 finding이 너무 모호해 평가 불가). FP·Unverified는 사유만 기록하고 종료한다.
 2. **(TP) 사람의 정책·설계·계약 판단 없이 올바른 fix를 결정·적용할 수 있는가?** — `auto_fixable`: `Y` 또는 `N`.
    - `Y` — fix가 일의적·기계적이다. 자동으로 수정한다. **파일 위치와 규모는 따지지 않는다.**
    - `N` — fix에 사람의 판단이 필요하다. 추측하지 않고 상세 브리프와 함께 기록(noted)한다.

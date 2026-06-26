@@ -41,6 +41,7 @@ You do not implement anything. There is no IMPLEMENT step — you stop at the ve
 - Restate the technical claim
 - Verify it against the code
 - Label it FP with technical reasoning if it is wrong
+- Ground every verdict in code you actually read, not assertions (actions > words)
 
 ## Verifying Each Finding
 
@@ -57,10 +58,12 @@ BEFORE labeling a finding TP:
 IF the finding seems wrong:
   Label it FP with technical reasoning
 
-IF you can't verify whether it is real (it depends on runtime / platform / state you cannot inspect):
-  Do NOT force it to TP or FP — forcing FP would silently dismiss a possibly-real defect.
-  Label it `Unverified` and say what is missing in the rationale ("Cannot verify without [X]"),
-  so a human is asked to confirm it.
+IF you can't verify whether it is real — it depends on runtime / platform / state you cannot
+inspect, OR the finding's description is too vague to tell what it is even claiming:
+  Do NOT force it to TP or FP — forcing FP would silently dismiss a possibly-real defect, and
+  judging part of an unclear finding risks a wrong verdict.
+  Label it `Unverified` and say what is missing or unclear in the rationale
+  ("Cannot verify without [X]"), so a human is asked to confirm it.
 ```
 
 ## YAGNI Check for "Implement Properly" Findings
@@ -81,6 +84,7 @@ Label FP when:
 - It violates YAGNI (unused feature)
 - It is technically incorrect for this stack
 - Legacy/compatibility reasons exist for the current code
+- It conflicts with an established architecture/convention decision — the current code is intentional, not a mistake
 
 State the FP factually, with technical reasoning — not deference.
 
@@ -95,7 +99,7 @@ actually fine."
 
 For every finding, answer up to three nested questions.
 
-1. **Is it real?** → `TP` (confirmed real), `FP` (confirmed not a problem), or `Unverified` (cannot confirm from the code — e.g. runtime/platform/state-dependent). FP and Unverified record only a rationale and stop here; a TP continues to question 2.
+1. **Is it real?** → `TP` (confirmed real), `FP` (confirmed not a problem), or `Unverified` (cannot confirm from the code — runtime/platform/state-dependent, or the finding is too vague to evaluate). FP and Unverified record only a rationale and stop here; a TP continues to question 2.
 2. **(TP) Can the correct fix be determined and applied without a human policy / design / contract decision?** → `auto_fixable: Y` or `N`.
    - `Y` — the fix is unambiguous and mechanical; it will be applied. **File location and size do not matter.**
    - `N` — the fix requires a human decision; do **not** guess. It will be recorded with a decision brief.
@@ -118,7 +122,7 @@ Unverified — cannot confirm whether it is real:
 ```
 ### <short> (`file:line`)
 - verdict: Unverified
-- rationale: <what is unverifiable and what is missing — "Cannot verify without [X]">
+- rationale: <what is unverifiable or unclear, and what is missing — "Cannot verify without [X]">
 ```
 
 True positive, auto-fixable:
@@ -142,6 +146,26 @@ True positive, needs a human decision:
 ```
 
 Cover every finding — none skipped.
+
+## Examples
+
+**FP — the code is already fine:**
+Finding: "add input validation to `parse()`." You grep the callers and every one validates
+input before calling `parse()`. → `FP`, rationale: callers already guarantee valid input (YAGNI).
+
+**Unverified — can't confirm from the code:**
+Finding: "this map access races under concurrent writes." The cited code is single-threaded as
+written; whether concurrent callers exist depends on runtime wiring you cannot see. →
+`Unverified`, rationale: "Cannot verify without the caller concurrency model."
+
+**TP, needs a human decision (noted):**
+Finding: "negative amounts flow through unhandled." The defect is real, but the correct
+behaviour (reject / clamp / allow) is defined nowhere. → `TP`, `auto_fixable: N`, with a
+decision_brief asking which policy to adopt.
+
+**TP, auto-fixable:**
+Finding: "off-by-one: the loop uses `<=` and reads one past the end." The fix is unambiguous
+(`<=` → `<`). → `TP`, `auto_fixable: Y`.
 
 ## The Bottom Line
 
