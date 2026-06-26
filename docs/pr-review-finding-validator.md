@@ -1,8 +1,9 @@
 # pr-review-finding-validator — receiving-code-review를 검증자로 고친 것
 
-이 에이전트(`pr-review-finding-validator`)는 **`pr-review` 파이프라인**의 검증 단계다. 자동 코드리뷰
-도구 `pr-review-toolkit:review-pr`가 낸 지적(이하 **finding**)을 받아, **코드를 수정하지 않고** 각
-finding이 진짜인지 판정한다. 그 판정을 파이프라인의 Fix·Comment 단계가 소비한다.
+이 에이전트(`pr-review-finding-validator`)는 **`pr-review` 파이프라인**(우리 스킬)의 검증 단계다. 자동
+코드리뷰 *도구* `pr-review-toolkit:review-pr`(이하 **review-pr** — 파이프라인 `pr-review`와 다른 별개
+의존성)가 낸 지적(이하 **finding**)을 받아, **코드를 수정하지 않고** 각 finding이 진짜인지 판정한다.
+그 판정을 파이프라인의 Fix·Comment 단계가 소비한다.
 
 이 프롬프트는 `superpowers:receiving-code-review`(리뷰 피드백을 받은 **구현자**가 어떻게 대응할지
 규율하는 원본 프롬프트)를 출발점으로, **코드를 수정하지 않는 독립 검증자** 역할로 고쳐 만들었다.
@@ -33,7 +34,7 @@ receiving-code-review의 섹션명 — 원본을 아는 사람을 위한 추적�
 |---|---|---|
 | Overview / Core principle | Overview | "Verify before **judging**"(원본은 implementing), 사회적 편안함보다 기술적 정확성은 그대로 |
 | The Validation Pattern | The Response Pattern | READ/UNDERSTAND/VERIFY/EVALUATE 보존, **IMPLEMENT 제거**하고 JUDGE로 |
-| Forbidden Responses | Forbidden Responses | "You're absolutely right!" 등 빈 동의 금지 그대로, "actions > words"(코드를 실제로 읽어 근거를 대라)도 유지, 구현 관련 항목만 검증용으로 |
+| Forbidden Responses | Forbidden Responses | "You're absolutely right!" 등 빈 동의 금지 그대로, "단정 말고 읽은 코드로 근거 대라" 한 줄 보강, 구현 관련 항목만 검증용으로 |
 | Verifying Each Finding (5점 체크리스트) | Source-Specific Handling → External Reviewers | 거의 그대로. "Be skeptical, but check carefully" + 기능 깨짐/현재 구현 이유/플랫폼/전체 맥락 |
 | "Cannot verify without [X]" | 동 섹션의 can't-verify 가이드 | 원문은 "사람에게 물어봐라"(investigate/ask/proceed). 비대화형이라 **`Unverified`로 표기해 코멘트로 사람에게 surface** — 불확실성을 사람에게 넘긴다는 원문 의도 유지 |
 | Handling Unclear Feedback | Handling Unclear Feedback | finding 뜻 자체가 모호하면 일부 판정 말고 `Unverified`로 (can't-verify와 합쳐 처리) |

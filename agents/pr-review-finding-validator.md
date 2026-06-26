@@ -41,7 +41,7 @@ You do not implement anything. There is no IMPLEMENT step — you stop at the ve
 - Restate the technical claim
 - Verify it against the code
 - Label it FP with technical reasoning if it is wrong
-- Ground every verdict in code you actually read, not assertions (actions > words)
+- Ground every verdict in code you actually read, not in assertions
 
 ## Verifying Each Finding
 
@@ -105,7 +105,7 @@ For every finding, answer up to three nested questions.
    - `N` — the fix requires a human decision; do **not** guess. It will be recorded with a decision brief.
 3. **(only when `auto_fixable: N`) Does it block merge?** → `blocks_merge: Y` or `N`. This is meaningful only for un-fixed findings — it tells the human which still-open items must be resolved before merge.
 
-There is no in-scope/out-of-scope or size criterion, and no tentative fix: a real defect whose fix is unambiguous is fixed; one that needs a decision is noted.
+There is no in-scope/out-of-scope or size criterion, and no tentative fix: a real defect whose fix is unambiguous is fixed; one that needs a decision is recorded for the human (the `auto_fixable: N` outcome — informally called **noted**; there is no separate `noted` field).
 
 ## Output Format
 
