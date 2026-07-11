@@ -35,11 +35,11 @@ receiving-code-review의 섹션명 — 원본을 아는 사람을 위한 추적�
 | Overview / Core principle | Overview | "Verify before **judging**"(원본은 implementing), 사회적 편안함보다 기술적 정확성은 그대로 |
 | The Validation Pattern | The Response Pattern | READ/UNDERSTAND/VERIFY/EVALUATE 보존, **IMPLEMENT 제거**하고 JUDGE로 |
 | Forbidden Responses | Forbidden Responses | "You're absolutely right!" 등 빈 동의 금지 그대로, "단정 말고 읽은 코드로 근거 대라" 한 줄 보강, 구현 관련 항목만 검증용으로 |
-| Verifying Each Finding (5점 체크리스트) | Source-Specific Handling → External Reviewers | 거의 그대로. "Be skeptical, but check carefully" + 기능 깨짐/현재 구현 이유/플랫폼/전체 맥락 |
+| Verifying Each Finding (5점 체크리스트) | Source-Specific Handling → External Reviewers | 거의 그대로. "Be skeptical, but check carefully" + 기능 깨짐/현재 구현 이유/플랫폼/전체 맥락. 단 "체크는 **결함 실재**를 의심할 근거이지 수정안 품질 평가가 아니다"라는 전제를 앞에 붙임 (원본은 구현자라 수정안 실행 여부 판단이 맞지만, 검증자의 판정 대상은 결함 실재) |
 | "Cannot verify without [X]" | 동 섹션의 can't-verify 가이드 | 원문은 "사람에게 물어봐라"(investigate/ask/proceed). 비대화형이라 **`Unverified`로 표기해 코멘트로 사람에게 surface** — 불확실성을 사람에게 넘긴다는 원문 의도 유지 |
 | Handling Unclear Feedback | Handling Unclear Feedback | finding 뜻 자체가 모호하면 일부 판정 말고 `Unverified`로 (can't-verify와 합쳐 처리) |
 | YAGNI Check | YAGNI Check for "Professional" Features | grep으로 사용처 확인 → 안 쓰이면 FP, 그대로 |
-| When a Finding Is a False Positive | When To Push Back | "push back"을 "label FP"로. 원본 6개 트리거(아키텍처/컨벤션 충돌 포함) 반영. **FP 경계 문단은 새로 더함** (아래 결정 모델) |
+| When a Finding Is a False Positive | When To Push Back | "push back"을 "label FP"로. 원본 6개 트리거(아키텍처/컨벤션 충돌 포함) 반영 — 단 "기능 깨짐" 트리거는 **실재 결함이 없을 때**로 좁힘(수정안이 나쁜 실재 결함은 FP가 아니라 TP `auto_fixable: N`). **FP 경계 문단은 새로 더함** (아래 결정 모델) |
 | Examples | Real Examples | 판정 예시(FP / Unverified / TP-noted / TP-fix)로 번역 |
 | The Bottom Line | The Bottom Line | "suggestions to evaluate, not orders to follow" 그대로 |
 

@@ -47,6 +47,10 @@ You do not implement anything. There is no IMPLEMENT step — you stop at the ve
 
 Findings come from an external reviewer (`pr-review-toolkit:review-pr`). **Be skeptical, but check carefully.**
 
+The checks below probe whether the **identified defect is real** — not whether the finding's
+suggested fix is good. A bad suggested fix does not make a real defect FP (see the FP boundary
+below); it makes the fix non-mechanical (`auto_fixable: N`).
+
 ```
 BEFORE labeling a finding TP:
   1. Check: Technically correct for THIS codebase?
@@ -79,7 +83,7 @@ IF a finding suggests "implementing properly" / adding a feature:
 ## When a Finding Is a False Positive
 
 Label FP when:
-- The suggestion breaks existing functionality
+- The suggestion breaks existing functionality **and** no real underlying defect exists — the breaking suggestion is the finding's only content (a real defect with a bad suggested fix is TP, `auto_fixable: N`)
 - The finding lacks full context
 - It violates YAGNI (unused feature)
 - It is technically incorrect for this stack
