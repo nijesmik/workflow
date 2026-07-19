@@ -40,7 +40,7 @@ receiving-code-review의 섹션명 — 원본을 아는 사람을 위한 추적�
 | Handling Unclear Feedback | Handling Unclear Feedback | finding 뜻 자체가 모호하면 일부 판정 말고 `Unverified`로 (can't-verify와 합쳐 처리) |
 | YAGNI Check | YAGNI Check for "Professional" Features | grep으로 사용처 확인 → 안 쓰이면 FP, 그대로 |
 | When a Finding Is a False Positive | When To Push Back | "push back"을 "label FP"로. 원본 6개 트리거(아키텍처/컨벤션 충돌 포함) 반영 — 단 "기능 깨짐" 트리거는 **실재 결함이 없을 때**로 좁힘(수정안이 나쁜 실재 결함은 FP가 아니라 TP `auto_fixable: N`). **FP 경계 문단은 새로 더함** (아래 결정 모델) |
-| Examples | Real Examples | 판정 예시(FP / Unverified / TP-noted / TP-fix)로 번역 |
+| Examples | Real Examples | 판정 예시(FP / Unverified / TP-decision / TP-scope / TP-fix)로 번역 |
 | The Bottom Line | The Bottom Line | "suggestions to evaluate, not orders to follow" 그대로 |
 
 ## 더한 것 — 결정 모델
@@ -48,28 +48,29 @@ receiving-code-review의 섹션명 — 원본을 아는 사람을 위한 추적�
 원본은 "피드백을 고칠지 / 반박할지"까지만 다루지, finding을 **자동으로 고칠지** 가르는 로직이
 없다. 그래서 결정 모델을 새로 얹었다. 이것이 원본과의 가장 큰 차이다.
 
-review-pr가 낸 finding마다 중첩된 세 질문으로 판정하고, 그 판정이 `pr-review`의 Fix·Comment
+review-pr가 낸 finding마다 중첩된 네 질문으로 판정하고, 그 판정이 `pr-review`의 Fix·Comment
 단계 동작을 결정한다.
 
-### 세 질문
+### 네 질문
 
-1. **실재하는가?** — `verdict`: `TP`(실재 확인) / `FP`(문제없음 확인) / `Unverified`(코드만으로는 확정 불가 — 런타임·플랫폼·상태 의존, 또는 finding이 너무 모호해 평가 불가). FP·Unverified는 사유만 기록하고 종료한다.
+1. **실재하는가?** — `verdict`: `TP`(실재 확인) / `FP`(문제없음 확인) / `Unverified`(코드만으로는 확정 불가 — 런타임·플랫폼·상태 의존, 또는 finding이 너무 모호해 평가 불가). FP는 사유만 기록하고 종료. Unverified는 cited 코드에 revert 테스트를 적용해 pre-existing이면 `pre_existing: Y`를 함께 기록하고 종료(결함 실재와 무관하게 코드의 base 존재 여부는 기계 판정 가능).
 2. **(TP) 사람의 정책·설계·계약 판단 없이 올바른 fix를 결정·적용할 수 있는가?** — `auto_fixable`: `Y` 또는 `N`.
    - `Y` — fix가 일의적·기계적이다. 자동으로 수정한다. **파일 위치와 규모는 따지지 않는다.**
-   - `N` — fix에 사람의 판단이 필요하다. 추측하지 않고 상세 브리프와 함께 기록한다(이 상태를 **noted** — 코드는 그대로 두고 코멘트에만 올림 — 이라 부른다).
-3. **(`auto_fixable=N`일 때만) 머지를 막는가?** — `blocks_merge`: `Y` 또는 `N`. 미수정 항목 중
-   무엇을 머지 전에 반드시 해결해야 하는지를 사람에게 표시한다.
+   - `N` — fix에 사람의 판단이 필요하다. 추측하지 않고 질문 3으로.
+3. **(auto_fixable=N) 결함이 이 PR 이전부터 있었고 PR 범위 밖인가?** — **결함-정체성 기준 revert 테스트**: 이 PR의 diff를 되돌린 코드베이스에 동일 결함이 존재하는가(위치가 달라도). 아니면 → `deferred: decision`(이 PR의 문제). 맞아도 이 PR이 그 결함에 **의존**(새 코드의 정확성이 결함 동작에 좌우)하거나 **악화**(발생 조건을 새로 충족 — "최초 점화" — 하거나 영향 범위를 질적으로 확장; 단순 호출 추가는 제외)시키면 → `deferred: decision`으로 승격. 그 외 → `deferred: scope` — `blocks_merge`를 내보내지 않는다(부재 = N).
+4. **(`deferred: decision`일 때만) 머지를 막는가?** — `blocks_merge`: `Y` 또는 `N`. 미해결 결정 중 무엇을 머지 전에 반드시 풀어야 하는지를 사람에게 표시한다.
 
 ### 산출
 
 - **TP + `auto_fixable=Y`** → 자동 수정. `Fixed in <sha>`.
-- **TP + `auto_fixable=N`** → 코드 변경 없이 상세 브리프(issue / decision_needed / options)와 `blocks_merge`를 기록.
+- **TP + `deferred: decision`** → 코드 변경 없이 상세 브리프(issue / impact / decision_needed / options / recommendation)와 `blocks_merge`를 기록. recommendation은 옵션 간 트레이드오프가 **코드 근거로 판정 가능할 때만** 내고, 순수 제품·정책 선택이면 `none` — validator는 코드에서 근거를 댈 수 있는 것만 말한다.
+- **TP + `deferred: scope`** → 코드 변경 없이 `followup_brief`(issue / why_out_of_scope / impact / fix_sketch)를 기록. 이슈 등록 권고는 **의도적으로 없다** — 등록 가치는 팀 우선순위에 달린 가치 판단이라 코드 근거가 없고, "등록 권장" 앵커링은 후속 이슈 발산을 재생산한다. 등록 여부는 코멘트의 이슈 게이트에서 사람이 고른다.
 - **FP** → 코드 변경 없이 사유만 기록.
-- **Unverified** → 코드 변경 없이 "무엇이 없어 확정 못 했는지"를 기록하고, 코멘트의 Needs your attention에 올려 사람에게 확인을 요청한다.
+- **Unverified** → 코드 변경 없이 "무엇이 없어 확정 못 했는지"를 기록. pre-existing이 아니면 코멘트의 **Decide in this PR**에 확인 요청으로, `pre_existing: Y`면 **Pre-existing defects — issue candidates**에 `unconfirmed` 라벨로 올라간다.
 
 위와 함께 더한 것:
-- **Output Format 스키마** — verdict + (TP면) auto_fixable, noted엔 decision_brief를 구조화 출력.
-- **FP 경계 문단** (When a Finding Is a False Positive 섹션 내) — "FP는 코드가 실제로 문제없을 때만; 실재 결함은 fix가 범위 밖이거나 계약 미정이어도 `auto_fixable: N`(noted)".
+- **Output Format 스키마** — verdict + (TP면) auto_fixable + (N이면) deferred, decision엔 decision_brief, scope엔 followup_brief를 구조화 출력. 두 브리프 모두 "읽는 사람이 코드를 열지 않고 결정할 수 있게" 쓴다.
+- **FP 경계 문단** (When a Finding Is a False Positive 섹션 내) — "FP는 코드가 실제로 문제없을 때만; 실재 결함은 계약 미정이면 `deferred: decision`, 이 PR과 무관한 pre-existing이면 `deferred: scope`".
 
 ### auto_fixable이 유일한 기준인 이유
 
@@ -77,11 +78,12 @@ review-pr가 낸 finding마다 중첩된 세 질문으로 판정하고, 그 판�
 정할 수 있는가". 그 외 속성은 기준에 넣지 않으며, 이유는 다음과 같다.
 
 - **머지 차단(`blocks_merge`)은 기준이 아니다.** 자동으로 고쳐지면 그 항목은 더 이상 머지를
-  막지 않으므로, "고칠지"와 머지 차단 여부는 무관하다. 그래서 `blocks_merge`는 고치지 못한
-  항목의 **우선순위 표시**로만 쓴다.
-- **파일 위치·변경 규모도 기준이 아니다.** review-pr의 finding은 PR diff에서 나오므로 본래
-  PR과 관련돼 있고, PR의 코드가 의존하는 결함은 그 뿌리가 다른 파일에 있어도 고치는 것이 옳다.
-  규모가 크다는 이유로 막지 않으며, 수정이 안전한지는 파이프라인의 Verify 단계(lint/test/typecheck)가 검증한다.
+  막지 않으므로, "고칠지"와 머지 차단 여부는 무관하다. 그래서 `blocks_merge`는 **`deferred: decision`
+  항목의 우선순위 표시**로만 쓴다 (`deferred: scope`는 pre-existing이라 merge를 막지 않으며 필드 자체가 없다).
+- **파일 위치·변경 규모도 자동 수정의 기준이 아니다.** fix가 일의적이면 위치·규모 무관하게 고친다.
+  scope는 **고치지 못한 항목의 라우팅**에만 등장한다 — 이 PR에서 결정할 것(`decision`)과 사람이
+  가져갈지 말지 고르는 것(`scope`)을 가르는 기준이지, 자동 수정을 막는 기준이 아니다.
+  수정이 안전한지는 파이프라인의 Verify 단계(lint/test/typecheck)가 검증한다.
 - **추측하지 않는다.** 올바른 fix가 일의적이지 않으면(`auto_fixable: N`) 자동으로 손대지 않고
   사람에게 넘긴다.
 
